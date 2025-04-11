@@ -1,6 +1,7 @@
 import pygame
 import random
 import sys
+import math
 
 # Initialize Pygame
 pygame.init()
@@ -19,96 +20,25 @@ BLUE = (0, 0, 255)
 LIGHT_BLUE = (173, 216, 230)
 YELLOW = (255, 255, 0)
 ORANGE = (255, 165, 0)
+CARBON_GRAY = (50, 50, 50)  # Dark gray for base carborundum color
+METALIC_BLUE = (70, 130, 180)  # Light blue for metal sheen
+METALIC_GREEN = (0, 255, 255)  # Light greenish shine
+SHIMMER_COLOR = (192, 192, 192)  # Silver shimmer for highlights
 
 # Load galaxy background image
 background = pygame.image.load('galaxy_background.jpg')
 background = pygame.transform.scale(background, (WIDTH, HEIGHT))
 
-# Load rock image and remove the white background (if needed)
-rock_image = pygame.image.load('rock_image.png')  # Replace with your rock image
-
-def remove_white_background(image):
-    image = image.convert_alpha()  # Ensure image has an alpha channel (transparency)
-    width, height = image.get_size()
-    for y in range(height):
-        for x in range(width):
-            color = image.get_at((x, y))  # Get RGBA value of each pixel
-            if color == WHITE:  # If pixel is white, make it transparent
-                image.set_at((x, y), (0, 0, 0, 0))
-    return image
-
-rock_image = remove_white_background(rock_image)
-rock_image = pygame.transform.scale(rock_image, (50, 50))  # Resize to fit game world
-
-# Load spaceship image and remove the white background (if needed)
-spaceship_image = pygame.image.load('spaceship.png')  # Replace with your spaceship image filename
-spaceship_image = remove_white_background(spaceship_image)
+# Load spaceship image
+spaceship_image = pygame.image.load('spaceship_image.png')
 spaceship_image = pygame.transform.scale(spaceship_image, (80, 80))  # Resize to fit game world
-
-# Pixel Explosion class to simulate explosive pixel effect with new colors
-class PixelExplosion(pygame.sprite.Sprite):
-    def __init__(self, x, y):
-        super().__init__()
-        self.particles = []  # List of particles that will form the explosion
-        self.lifetime = 30  # How long the explosion lasts
-        for _ in range(50):  # Create 50 particles
-            particle = {
-                "pos": pygame.Vector2(x, y),
-                "vel": pygame.Vector2(random.uniform(-3, 3), random.uniform(-3, 3)),  # Random velocity for each particle
-                "color": random.choice([RED, ORANGE, YELLOW]),  # Random color for each particle (Red, Orange, Yellow)
-                "size": random.randint(2, 5),  # Random size of the particle
-                "alpha": 255  # Full opacity at the start
-            }
-            self.particles.append(particle)
-
-    def update(self):
-        # Update particles and check for their lifetime
-        for particle in self.particles:
-            particle["pos"] += particle["vel"]  # Move particle
-            particle["alpha"] -= 10  # Fade out particle
-            if particle["alpha"] <= 0:  # Remove the particle if it's too transparent
-                self.particles.remove(particle)
-
-    def draw(self, surface):
-        # Draw each particle as a small rectangle (pixel effect)
-        for particle in self.particles:
-            pygame.draw.rect(surface, particle["color"], (particle["pos"].x, particle["pos"].y, particle["size"], particle["size"]))
-            # Apply alpha to simulate fading
-            surface.set_at((int(particle["pos"].x), int(particle["pos"].y)), (particle["color"][0], particle["color"][1], particle["color"][2], particle["alpha"]))
-
-# Rock class (used as the enemy)
-class Rock(pygame.sprite.Sprite):
-    def __init__(self):
-        super().__init__()
-        self.image = rock_image
-        self.original_image = self.image
-        self.rect = self.image.get_rect()
-        self.rect.x = random.randint(0, WIDTH - self.rect.width)
-        self.rect.y = random.randint(-100, -40)
-        self.speed = random.randint(1, 3)
-        self.angle = random.randint(0, 360)  # Start with random rotation angle
-
-    def update(self):
-        self.rect.y += self.speed
-        if self.rect.top > HEIGHT:
-            self.rect.x = random.randint(0, WIDTH - self.rect.width)
-            self.rect.y = random.randint(-100, -40)
-        
-        # Rotate the rock image
-        self.angle += 2  # Increase angle to make the rock rotate
-        if self.angle >= 360:  # Reset angle after full rotation
-            self.angle = 0
-        
-        # Rotate the image and keep it centered
-        self.image = pygame.transform.rotate(self.original_image, self.angle)
-        self.rect = self.image.get_rect(center=self.rect.center)
 
 # Bullet class
 class Bullet(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
         self.image = pygame.Surface((5, 10))
-        self.image.fill(RED)  # Change bullet color to red
+        self.image.fill(RED)  # Bullet color
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
         self.speed = 7
@@ -122,7 +52,7 @@ class Bullet(pygame.sprite.Sprite):
 class Spaceship(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
-        self.image = spaceship_image  # Use the spaceship image with the transparent background
+        self.image = spaceship_image
         self.rect = self.image.get_rect()
         self.rect.center = (WIDTH // 2, HEIGHT - 60)
         self.speed = 5
@@ -142,6 +72,87 @@ class Spaceship(pygame.sprite.Sprite):
         bullet = Bullet(self.rect.centerx, self.rect.top)
         all_sprites.add(bullet)
         bullets.add(bullet)
+
+# Carborundum rock class (updated with realistic look)
+class Rock(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        self.size = random.randint(45, 65)
+        self.image = self.generate_carborundum_surface(self.size)
+        self.original_image = self.image
+        self.rect = self.image.get_rect()
+        self.rect.x = random.randint(0, WIDTH - self.rect.width)
+        self.rect.y = random.randint(-100, -40)
+        self.speed = random.randint(1, 3)
+        self.angle = random.randint(0, 360)
+
+    def generate_carborundum_surface(self, size):
+        surface = pygame.Surface((size, size), pygame.SRCALPHA)
+        center = (size // 2, size // 2)
+        num_points = random.randint(7, 11)
+        radius = size // 2
+
+        # Base dark gray color for the carborundum
+        base_color = CARBON_GRAY
+
+        # Adding some shimmer colors (light blue and greenish highlights)
+        shimmer_colors = [METALIC_BLUE, METALIC_GREEN, SHIMMER_COLOR]
+
+        # Build irregular jagged polygon (crystalline facets)
+        points = []
+        for i in range(num_points):
+            angle = math.radians(i * (360 / num_points))
+            r = radius + random.randint(-8, 12)
+            x = center[0] + r * math.cos(angle)
+            y = center[1] + r * math.sin(angle)
+            points.append((x, y))
+
+        pygame.draw.polygon(surface, base_color, points)
+
+        # Add metallic shimmer for highlights on facets
+        for _ in range(random.randint(5, 8)):
+            px = random.randint(5, size - 10)
+            py = random.randint(5, size - 10)
+            shimmer_color = random.choice(shimmer_colors)
+            pygame.draw.polygon(surface, shimmer_color, [
+                (px, py),
+                (px + random.randint(-5, 5), py + random.randint(5, 15)),
+                (px + random.randint(-5, 5), py + random.randint(10, 20))
+            ])
+
+        # Add some random facets with silver highlights
+        for _ in range(random.randint(3, 5)):
+            sparkle_x = random.randint(0, size)
+            sparkle_y = random.randint(0, size)
+            pygame.draw.circle(surface, (255, 255, 255, 90), (sparkle_x, sparkle_y), 2)
+
+        return surface
+
+    def update(self):
+        self.rect.y += self.speed
+        if self.rect.top > HEIGHT:
+            self.rect.x = random.randint(0, WIDTH - self.rect.width)
+            self.rect.y = random.randint(-100, -40)
+
+        self.angle += 2
+        if self.angle >= 360:
+            self.angle = 0
+
+        self.image = pygame.transform.rotate(self.original_image, self.angle)
+        self.rect = self.image.get_rect(center=self.rect.center)
+
+    def explode(self):
+        # Create shards when the rock explodes
+        shards = []
+        for _ in range(random.randint(5, 10)):
+            shard = {
+                "pos": pygame.Vector2(self.rect.centerx, self.rect.centery),
+                "vel": pygame.Vector2(random.uniform(-2, 2), random.uniform(-2, 2)),
+                "size": random.randint(5, 10),
+                "color": random.choice([METALIC_BLUE, METALIC_GREEN, SHIMMER_COLOR]),
+            }
+            shards.append(shard)
+        return shards
 
 # Set up sprite groups
 all_sprites = pygame.sprite.Group()
@@ -178,23 +189,24 @@ while running:
     for bullet in bullets:
         rock_hits = pygame.sprite.spritecollide(bullet, rocks, True)
         for hit in rock_hits:
-            # Add an explosion with the pixel effect at the location of the collision
-            explosion = PixelExplosion(hit.rect.centerx, hit.rect.centery)
-            explosions.add(explosion)
             score += 10
             bullet.kill()  # Remove the bullet
             rock = Rock()  # Spawn a new rock after collision
             all_sprites.add(rock)
             rocks.add(rock)
 
+            # Explode rock into shards
+            shards = hit.explode()
+            for shard in shards:
+                pygame.draw.circle(screen, shard["color"], (int(shard["pos"].x), int(shard["pos"].y)), shard["size"])
+
     # Draw everything
     screen.fill(BLACK)
     screen.blit(background, (0, 0))  # Draw the galaxy background
 
-    # Manually draw explosions
-    for explosion in explosions:
-        explosion.update()
-        explosion.draw(screen)
+    # Draw all rocks
+    for rock in rocks:
+        screen.blit(rock.image, rock.rect)
 
     # Draw all other sprites
     all_sprites.draw(screen)
