@@ -20,10 +20,10 @@ BLUE = (0, 0, 255)
 LIGHT_BLUE = (173, 216, 230)
 YELLOW = (255, 255, 0)
 ORANGE = (255, 165, 0)
-CARBON_GRAY = (50, 50, 50)  # Dark gray for base carborundum color
-METALIC_BLUE = (70, 130, 180)  # Light blue for metal sheen
-METALIC_GREEN = (0, 255, 255)  # Light greenish shine
-SHIMMER_COLOR = (192, 192, 192)  # Silver shimmer for highlights
+CARBON_GRAY = (50, 50, 50)
+METALIC_BLUE = (70, 130, 180)
+METALIC_GREEN = (0, 255, 255)
+SHIMMER_COLOR = (192, 192, 192)
 
 # Load galaxy background image
 background = pygame.image.load('galaxy_background.jpg')
@@ -31,14 +31,14 @@ background = pygame.transform.scale(background, (WIDTH, HEIGHT))
 
 # Load spaceship image
 spaceship_image = pygame.image.load('spaceship_image.png')
-spaceship_image = pygame.transform.scale(spaceship_image, (80, 80))  # Resize to fit game world
+spaceship_image = pygame.transform.scale(spaceship_image, (120, 120))
 
 # Bullet class
 class Bullet(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
         self.image = pygame.Surface((5, 10))
-        self.image.fill(RED)  # Bullet color
+        self.image.fill(RED)
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
         self.speed = 7
@@ -73,7 +73,7 @@ class Spaceship(pygame.sprite.Sprite):
         all_sprites.add(bullet)
         bullets.add(bullet)
 
-# Carborundum rock class (updated with realistic look)
+# Carborundum rock class
 class Rock(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
@@ -91,14 +91,6 @@ class Rock(pygame.sprite.Sprite):
         center = (size // 2, size // 2)
         num_points = random.randint(7, 11)
         radius = size // 2
-
-        # Base dark gray color for the carborundum
-        base_color = CARBON_GRAY
-
-        # Adding some shimmer colors (light blue and greenish highlights)
-        shimmer_colors = [METALIC_BLUE, METALIC_GREEN, SHIMMER_COLOR]
-
-        # Build irregular jagged polygon (crystalline facets)
         points = []
         for i in range(num_points):
             angle = math.radians(i * (360 / num_points))
@@ -107,20 +99,18 @@ class Rock(pygame.sprite.Sprite):
             y = center[1] + r * math.sin(angle)
             points.append((x, y))
 
-        pygame.draw.polygon(surface, base_color, points)
+        pygame.draw.polygon(surface, CARBON_GRAY, points)
 
-        # Add metallic shimmer for highlights on facets
         for _ in range(random.randint(5, 8)):
             px = random.randint(5, size - 10)
             py = random.randint(5, size - 10)
-            shimmer_color = random.choice(shimmer_colors)
+            shimmer_color = random.choice([METALIC_BLUE, METALIC_GREEN, SHIMMER_COLOR])
             pygame.draw.polygon(surface, shimmer_color, [
                 (px, py),
                 (px + random.randint(-5, 5), py + random.randint(5, 15)),
                 (px + random.randint(-5, 5), py + random.randint(10, 20))
             ])
 
-        # Add some random facets with silver highlights
         for _ in range(random.randint(3, 5)):
             sparkle_x = random.randint(0, size)
             sparkle_y = random.randint(0, size)
@@ -142,7 +132,6 @@ class Rock(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(center=self.rect.center)
 
     def explode(self):
-        # Create shards when the rock explodes
         shards = []
         for _ in range(random.randint(5, 10)):
             shard = {
@@ -161,10 +150,9 @@ all_sprites.add(spaceship)
 
 bullets = pygame.sprite.Group()
 rocks = pygame.sprite.Group()
-explosions = pygame.sprite.Group()
 
-# Create rocks (enemies)
-for i in range(10):
+# Create rocks
+for _ in range(10):
     rock = Rock()
     all_sprites.add(rock)
     rocks.add(rock)
@@ -178,49 +166,38 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_SPACE:
-                spaceship.shoot()
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+            spaceship.shoot()
 
-    # Update all sprites
     all_sprites.update()
 
-    # Check for bullet collisions with rocks
     for bullet in bullets:
         rock_hits = pygame.sprite.spritecollide(bullet, rocks, True)
         for hit in rock_hits:
             score += 10
-            bullet.kill()  # Remove the bullet
-            rock = Rock()  # Spawn a new rock after collision
-            all_sprites.add(rock)
-            rocks.add(rock)
-
-            # Explode rock into shards
-            shards = hit.explode()
-            for shard in shards:
+            bullet.kill()
+            new_rock = Rock()
+            all_sprites.add(new_rock)
+            rocks.add(new_rock)
+            for shard in hit.explode():
                 pygame.draw.circle(screen, shard["color"], (int(shard["pos"].x), int(shard["pos"].y)), shard["size"])
 
-    # Draw everything
     screen.fill(BLACK)
-    screen.blit(background, (0, 0))  # Draw the galaxy background
+    screen.blit(background, (0, 0))
 
-    # Draw all rocks
     for rock in rocks:
         screen.blit(rock.image, rock.rect)
 
-    # Draw all other sprites
     all_sprites.draw(screen)
 
-    # Display score
     font = pygame.font.SysFont("Arial", 24)
     score_text = font.render(f"Score: {score}", True, WHITE)
     screen.blit(score_text, (10, 10))
 
-    # Update display
     pygame.display.flip()
-
-    # Cap the frame rate
     clock.tick(60)
 
 pygame.quit()
 sys.exit()
+
+
