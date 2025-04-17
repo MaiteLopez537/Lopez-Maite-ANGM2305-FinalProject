@@ -26,7 +26,7 @@ METALIC_GREEN = (0, 255, 255)
 SHIMMER_COLOR = (192, 192, 192)
 
 # Load galaxy background image
-background = pygame.image.load('galaxy_background.jpg')
+background = pygame.image.load('galaxy_background.jpeg')
 background = pygame.transform.scale(background, (WIDTH, HEIGHT))
 
 # Load spaceship image
