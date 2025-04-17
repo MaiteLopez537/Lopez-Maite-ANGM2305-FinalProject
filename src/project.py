@@ -31,7 +31,25 @@ background = pygame.transform.scale(background, (WIDTH, HEIGHT))
 
 # Load spaceship image
 spaceship_image = pygame.image.load('spaceship_image.png')
-spaceship_image = pygame.transform.scale(spaceship_image, (120, 120))
+spaceship_image = pygame.transform.scale(spaceship_image, (120, 120))  # Bigger ship
+
+# Health setup
+max_health = 10
+heart_size = 20
+
+# Function to draw hearts
+def draw_heart(surface, x, y, size, color):
+    top_curve_radius = size // 4
+    triangle_height = size // 1.5
+    points = [
+        (x, y + top_curve_radius),
+        (x - size // 2, y + top_curve_radius),
+        (x, y - triangle_height // 3),
+        (x + size // 2, y + top_curve_radius)
+    ]
+    pygame.draw.polygon(surface, color, points)
+    pygame.draw.circle(surface, color, (x - top_curve_radius, y), top_curve_radius)
+    pygame.draw.circle(surface, color, (x + top_curve_radius, y), top_curve_radius)
 
 # Bullet class
 class Bullet(pygame.sprite.Sprite):
@@ -73,7 +91,7 @@ class Spaceship(pygame.sprite.Sprite):
         all_sprites.add(bullet)
         bullets.add(bullet)
 
-# Carborundum rock class
+# Rock class
 class Rock(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
@@ -143,61 +161,109 @@ class Rock(pygame.sprite.Sprite):
             shards.append(shard)
         return shards
 
-# Set up sprite groups
-all_sprites = pygame.sprite.Group()
-spaceship = Spaceship()
-all_sprites.add(spaceship)
+# Game Over screen
+def game_over_screen():
+    font_large = pygame.font.SysFont("Arial", 64)
+    font_small = pygame.font.SysFont("Arial", 32)
+    button_rect = pygame.Rect(WIDTH//2 - 100, HEIGHT//2 + 50, 200, 50)
 
-bullets = pygame.sprite.Group()
-rocks = pygame.sprite.Group()
+    while True:
+        screen.fill(BLACK)
+        screen.blit(background, (0, 0))
 
-# Create rocks
-for _ in range(10):
-    rock = Rock()
-    all_sprites.add(rock)
-    rocks.add(rock)
+        # Display "You Died"
+        game_over_text = font_large.render("You Died", True, RED)
+        screen.blit(game_over_text, (WIDTH//2 - game_over_text.get_width()//2, HEIGHT//2 - 100))
 
-# Game loop
-running = True
-clock = pygame.time.Clock()
-score = 0
+        # Draw button
+        pygame.draw.rect(screen, LIGHT_BLUE, button_rect)
+        try_again_text = font_small.render("Try Again", True, BLACK)
+        screen.blit(try_again_text, (button_rect.centerx - try_again_text.get_width()//2,
+                                     button_rect.centery - try_again_text.get_height()//2))
 
-while running:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-            spaceship.shoot()
+        pygame.display.flip()
 
-    all_sprites.update()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if button_rect.collidepoint(event.pos):
+                    return
 
-    for bullet in bullets:
-        rock_hits = pygame.sprite.spritecollide(bullet, rocks, True)
-        for hit in rock_hits:
-            score += 10
-            bullet.kill()
+# Start game loop
+def start_game():
+    global all_sprites, spaceship, bullets, rocks
+
+    current_health = max_health
+    score = 0
+    clock = pygame.time.Clock()
+
+    all_sprites = pygame.sprite.Group()
+    spaceship = Spaceship()
+    all_sprites.add(spaceship)
+
+    bullets = pygame.sprite.Group()
+    rocks = pygame.sprite.Group()
+
+    for _ in range(10):
+        rock = Rock()
+        all_sprites.add(rock)
+        rocks.add(rock)
+
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                spaceship.shoot()
+
+        all_sprites.update()
+
+        for bullet in bullets:
+            rock_hits = pygame.sprite.spritecollide(bullet, rocks, True)
+            for hit in rock_hits:
+                score += 10
+                bullet.kill()
+                new_rock = Rock()
+                all_sprites.add(new_rock)
+                rocks.add(new_rock)
+                for shard in hit.explode():
+                    pygame.draw.circle(screen, shard["color"], (int(shard["pos"].x), int(shard["pos"].y)), shard["size"])
+
+        rock_hits_player = pygame.sprite.spritecollide(spaceship, rocks, True)
+        for hit in rock_hits_player:
+            current_health -= 1
+            if current_health <= 0:
+                game_over_screen()
+                return start_game()
             new_rock = Rock()
             all_sprites.add(new_rock)
             rocks.add(new_rock)
-            for shard in hit.explode():
-                pygame.draw.circle(screen, shard["color"], (int(shard["pos"].x), int(shard["pos"].y)), shard["size"])
 
-    screen.fill(BLACK)
-    screen.blit(background, (0, 0))
+        screen.fill(BLACK)
+        screen.blit(background, (0, 0))
 
-    for rock in rocks:
-        screen.blit(rock.image, rock.rect)
+        for rock in rocks:
+            screen.blit(rock.image, rock.rect)
 
-    all_sprites.draw(screen)
+        all_sprites.draw(screen)
 
-    font = pygame.font.SysFont("Arial", 24)
-    score_text = font.render(f"Score: {score}", True, WHITE)
-    screen.blit(score_text, (10, 10))
+        font = pygame.font.SysFont("Arial", 24)
+        score_text = font.render(f"Score: {score}", True, WHITE)
+        screen.blit(score_text, (10, 10))
 
-    pygame.display.flip()
-    clock.tick(60)
+        for i in range(current_health):
+            draw_heart(screen, 30 + i * (heart_size + 5), HEIGHT - 40, heart_size, RED)
 
-pygame.quit()
-sys.exit()
+        pygame.display.flip()
+        clock.tick(60)
+
+# Start the game for the first time
+start_game()
+
+
 
 
