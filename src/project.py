@@ -3,7 +3,6 @@ import random
 import sys
 import math
 
-# Initialize Pygame
 pygame.init()
 
 # Set up screen dimensions
@@ -25,19 +24,26 @@ METALIC_BLUE = (70, 130, 180)
 METALIC_GREEN = (0, 255, 255)
 SHIMMER_COLOR = (192, 192, 192)
 
-# Load galaxy background image
+# Load background
 background = pygame.image.load('galaxy_background.jpeg')
 background = pygame.transform.scale(background, (WIDTH, HEIGHT))
 
-# Load spaceship image
+# Load spaceship
 spaceship_image = pygame.image.load('spaceship_image.png')
-spaceship_image = pygame.transform.scale(spaceship_image, (120, 120))  # Bigger ship
+spaceship_image = pygame.transform.scale(spaceship_image, (120, 120))
+
+# Load alien mothership with white background removed
+def load_transparent_image(path):
+    image = pygame.image.load(path).convert()
+    image.set_colorkey(WHITE)  # Make white transparent
+    return image
+
+alien_mothership_image = load_transparent_image("alien_mothership.jpeg")
 
 # Health setup
 max_health = 10
 heart_size = 20
 
-# Function to draw hearts
 def draw_heart(surface, x, y, size, color):
     top_curve_radius = size // 4
     triangle_height = size // 1.5
@@ -51,7 +57,6 @@ def draw_heart(surface, x, y, size, color):
     pygame.draw.circle(surface, color, (x - top_curve_radius, y), top_curve_radius)
     pygame.draw.circle(surface, color, (x + top_curve_radius, y), top_curve_radius)
 
-# Bullet class
 class Bullet(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
@@ -66,7 +71,19 @@ class Bullet(pygame.sprite.Sprite):
         if self.rect.bottom < 0:
             self.kill()
 
-# Spaceship class
+class BossLaser(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__()
+        self.image = pygame.Surface((6, 15))
+        self.image.fill(GREEN)
+        self.rect = self.image.get_rect(center=(x, y))
+        self.speed = 5
+
+    def update(self):
+        self.rect.y += self.speed
+        if self.rect.top > HEIGHT:
+            self.kill()
+
 class Spaceship(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
@@ -91,7 +108,6 @@ class Spaceship(pygame.sprite.Sprite):
         all_sprites.add(bullet)
         bullets.add(bullet)
 
-# Rock class
 class Rock(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
@@ -161,23 +177,61 @@ class Rock(pygame.sprite.Sprite):
             shards.append(shard)
         return shards
 
-# Game Over screen
+class AlienMothership(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        self.image = pygame.transform.scale(alien_mothership_image, (160, 160))  # Resize to spaceship size
+        self.rect = self.image.get_rect()
+        self.rect.center = (WIDTH // 2, 100)
+        self.health = 20
+        self.laser_timer = 0
+        self.speed_x = 3  # Horizontal movement speed
+
+    def update(self):
+        self.rect.x += self.speed_x
+        if self.rect.left <= 0 or self.rect.right >= WIDTH:
+            self.speed_x *= -1  # Reverse direction
+
+# Zig-zag vertical movement using sine wave
+        time_now = pygame.time.get_ticks() / 500  # Controls wave frequency
+        zigzag_offset = math.sin(time_now) * 10   # Adjust amplitude as needed
+        self.rect.y = 100 + zigzag_offset          # Base Y position + zigzag
+
+
+        self.laser_timer += 1
+        if self.laser_timer > 60:
+            self.laser_timer = 0
+            offsets = [-30, 0, 30]  # Left, center, right offsets
+            for offset in offsets:
+                laser = BossLaser(self.rect.centerx + offset, self.rect.bottom)
+                all_sprites.add(laser)
+                boss_lasers.add(laser)
+
+
+    def draw_health_bar(self, surface):
+        bar_width = 100
+        bar_height = 10
+        fill = (self.health / 20) * bar_width
+        outline_rect = pygame.Rect(self.rect.centerx - bar_width // 2, self.rect.top - 20, bar_width, bar_height)
+        fill_rect = pygame.Rect(outline_rect.x, outline_rect.y, fill, bar_height)
+        pygame.draw.rect(surface, RED, fill_rect)
+        pygame.draw.rect(surface, WHITE, outline_rect, 2)
+
+
 def game_over_screen():
-    font_large = pygame.font.SysFont("Arial", 64)
-    font_small = pygame.font.SysFont("Arial", 32)
+    font_large = pygame.font.SysFont("Copperplate", 64)
+    font_small = pygame.font.SysFont("Times New Roman", 32)
     button_rect = pygame.Rect(WIDTH//2 - 100, HEIGHT//2 + 50, 200, 50)
+    lavender_purple = (230, 230, 250)
 
     while True:
         screen.fill(BLACK)
         screen.blit(background, (0, 0))
 
-        # Display "You Died"
-        game_over_text = font_large.render("You Died", True, RED)
+        game_over_text = font_large.render("You Died", True, YELLOW)
         screen.blit(game_over_text, (WIDTH//2 - game_over_text.get_width()//2, HEIGHT//2 - 100))
 
-        # Draw button
-        pygame.draw.rect(screen, LIGHT_BLUE, button_rect)
-        try_again_text = font_small.render("Try Again", True, BLACK)
+        try_again_text = font_small.render("Try Again", True, lavender_purple)
         screen.blit(try_again_text, (button_rect.centerx - try_again_text.get_width()//2,
                                      button_rect.centery - try_again_text.get_height()//2))
 
@@ -191,20 +245,50 @@ def game_over_screen():
                 if button_rect.collidepoint(event.pos):
                     return
 
-# Start game loop
+def win_screen():
+    font_large = pygame.font.SysFont("Copperplate", 64)
+    font_small = pygame.font.SysFont("Times New Roman", 32)
+    button_rect = pygame.Rect(WIDTH//2 - 100, HEIGHT//2 + 50, 200, 50)
+    lavender_purple = (230, 230, 250)
+
+    while True:
+        screen.fill(BLACK)
+        screen.blit(background, (0, 0))
+
+        win_text = font_large.render("You Win!", True, GREEN)
+        screen.blit(win_text, (WIDTH//2 - win_text.get_width()//2, HEIGHT//2 - 100))
+
+        try_again_text = font_small.render("Play Again", True, lavender_purple)
+        screen.blit(try_again_text, (button_rect.centerx - try_again_text.get_width()//2,
+                                     button_rect.centery - try_again_text.get_height()//2))
+
+        pygame.display.flip()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if button_rect.collidepoint(event.pos):
+                    return
+
 def start_game():
-    global all_sprites, spaceship, bullets, rocks
+    global all_sprites, spaceship, bullets, rocks, boss_lasers
 
     current_health = max_health
     score = 0
+    rock_hits = 0
+    boss_fight = False
+    boss = None
     clock = pygame.time.Clock()
 
     all_sprites = pygame.sprite.Group()
-    spaceship = Spaceship()
-    all_sprites.add(spaceship)
-
     bullets = pygame.sprite.Group()
     rocks = pygame.sprite.Group()
+    boss_lasers = pygame.sprite.Group()
+
+    spaceship = Spaceship()
+    all_sprites.add(spaceship)
 
     for _ in range(10):
         rock = Rock()
@@ -222,36 +306,48 @@ def start_game():
 
         all_sprites.update()
 
-        for bullet in bullets:
-            rock_hits = pygame.sprite.spritecollide(bullet, rocks, True)
-            for hit in rock_hits:
-                score += 10
-                bullet.kill()
-                new_rock = Rock()
-                all_sprites.add(new_rock)
-                rocks.add(new_rock)
-                for shard in hit.explode():
-                    pygame.draw.circle(screen, shard["color"], (int(shard["pos"].x), int(shard["pos"].y)), shard["size"])
+        if not boss_fight:
+            for bullet in bullets:
+                hits = pygame.sprite.spritecollide(bullet, rocks, True)
+                for rock in hits:
+                    rock_hits += 1
+                    score += 10
+                    bullet.kill()
+                    new_rock = Rock()
+                    all_sprites.add(new_rock)
+                    rocks.add(new_rock)
+                    for shard in rock.explode():
+                        pygame.draw.circle(screen, shard["color"], (int(shard["pos"].x), int(shard["pos"].y)), shard["size"])
 
-        rock_hits_player = pygame.sprite.spritecollide(spaceship, rocks, True)
-        for hit in rock_hits_player:
-            current_health -= 1
-            if current_health <= 0:
-                game_over_screen()
-                return start_game()
-            new_rock = Rock()
-            all_sprites.add(new_rock)
-            rocks.add(new_rock)
+            if rock_hits >= 10:
+                boss_fight = True
+                for r in rocks:
+                    r.kill()
+                boss = AlienMothership()
+                all_sprites.add(boss)
+        else:
+            for bullet in bullets:
+                if pygame.sprite.collide_rect(bullet, boss):
+                    bullet.kill()
+                    boss.health -= 1
+                    if boss.health <= 0:
+                        win_screen()
+                        return start_game()
+
+            if pygame.sprite.spritecollide(spaceship, boss_lasers, True):
+                current_health -= 1
+                if current_health <= 0:
+                    game_over_screen()
+                    return start_game()
 
         screen.fill(BLACK)
         screen.blit(background, (0, 0))
-
-        for rock in rocks:
-            screen.blit(rock.image, rock.rect)
-
         all_sprites.draw(screen)
 
-        font = pygame.font.SysFont("Arial", 24)
+        if boss_fight and boss:
+            boss.draw_health_bar(screen)
+
+        font = pygame.font.SysFont("Times New Roman", 24)
         score_text = font.render(f"Score: {score}", True, WHITE)
         screen.blit(score_text, (10, 10))
 
@@ -261,8 +357,9 @@ def start_game():
         pygame.display.flip()
         clock.tick(60)
 
-# Start the game for the first time
 start_game()
+
+
 
 
 
