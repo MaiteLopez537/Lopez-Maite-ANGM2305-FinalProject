@@ -243,12 +243,13 @@ def win_screen():
                     return
 
 def start_game():
-    global all_sprites, spaceship, bullets, rocks, boss_lasers
+    global all_sprites, spaceship, bullets, rocks, boss_lasers, explosions
     current_health = max_health
     score = 0
     rock_hits = 0
     boss_fight = False
     boss = None
+    explosions = []
     clock = pygame.time.Clock()
 
     all_sprites = pygame.sprite.Group()
@@ -294,8 +295,10 @@ def start_game():
                     new_rock = Rock()
                     all_sprites.add(new_rock)
                     rocks.add(new_rock)
-                    for shard in rock.explode():
-                        pygame.draw.circle(screen, shard["color"], (int(shard["pos"].x), int(shard["pos"].y)), shard["size"])
+                    explosions.append({
+                        "shards": rock.explode(),
+                        "timer": 30  # Show for 30 frames
+                    })
             if rock_hits >= 10:
                 boss_fight = True
                 for r in rocks:
@@ -316,9 +319,19 @@ def start_game():
                     game_over_screen()
                     return start_game()
 
+        # Draw everything
         screen.fill(BLACK)
         screen.blit(background, (0, 0))
         all_sprites.draw(screen)
+
+        # Draw explosions
+        for explosion in explosions[:]:
+            for shard in explosion["shards"]:
+                pygame.draw.circle(screen, shard["color"], (int(shard["pos"].x), int(shard["pos"].y)), shard["size"])
+                shard["pos"] += shard["vel"]  # Move shards
+            explosion["timer"] -= 1
+            if explosion["timer"] <= 0:
+                explosions.remove(explosion)
 
         if boss_fight and boss:
             boss.draw_health_bar(screen)
