@@ -9,7 +9,8 @@ Demo Video: <URL>
 GitHub Repo: <URhttps://github.com/MaiteLopez537/Lopez-Maite-ANGM2305-FinalProject.gitL>
 
 ## Description
-Summary: An adventure game where the setting takes in on space. It starts with the main ship (player) being sent from Earth on a journey to stop an alien mothership from invading Earth. However, some obstacles the main spaceship (player) will face are avoiding getting hit by meteorites/rocks. As the final boss, the spaceship will take on an alien spaceship, using a red laser shot, to defeat the enemy alien.
+Summary:
+An adventure game where the setting takes in on space. It starts with the main ship (player) being sent from Earth on a journey to stop an alien mothership from invading Earth. However, some obstacles the main spaceship (player) will face are avoiding getting hit by meteorites/rocks. As the final boss, the spaceship will take on an alien spaceship, using a red laser shot, to defeat the enemy alien.
 
 Project file description: 
 
